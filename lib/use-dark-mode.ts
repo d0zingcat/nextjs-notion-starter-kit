@@ -12,13 +12,16 @@ const safeStorage = {
   removeItem: (key: string) => {
     if (typeof window === 'undefined') return
     window.localStorage.removeItem(key)
+  },
+  get localStorage() {
+    return this
   }
 }
 
 export function useDarkMode() {
   const darkMode = useDarkModeImpl(false, { 
     classNameDark: 'dark-mode',
-    storageProvider: safeStorage
+    storageProvider: safeStorage as any
   })
 
   return {
