@@ -139,28 +139,28 @@ function filterRecordMapByLanguage(
   // Deep clone collection_query to avoid mutating the original
   const newRecordMap: types.ExtendedRecordMap = {
     ...recordMap,
-    collection_query: JSON.parse(
-      JSON.stringify(recordMap.collection_query)
+    collection_query: structuredClone(
+      recordMap.collection_query
     ) as types.ExtendedRecordMap['collection_query']
   }
 
-  Object.keys(newRecordMap.collection_query || {}).forEach((collectionId) => {
+  for (const collectionId of Object.keys(newRecordMap.collection_query || {})) {
     const collection = newRecordMap.collection[collectionId]?.value
-    if (!collection) return
+    if (!collection) continue
 
     const schema = collection.schema
-    if (!schema) return
+    if (!schema) continue
 
     const langPropId = Object.keys(schema).find(
       (key) => schema[key]?.name?.toLowerCase() === 'language'
     )
 
-    if (!langPropId) return
+    if (!langPropId) continue
 
     const views = newRecordMap.collection_query[collectionId]
-    if (!views) return
+    if (!views) continue
 
-    Object.keys(views).forEach((viewId) => {
+    for (const viewId of Object.keys(views)) {
       const view = views[viewId]
       if (view?.collection_group_results?.blockIds) {
         const originalBlockIds = view.collection_group_results.blockIds
@@ -193,8 +193,8 @@ function filterRecordMapByLanguage(
 
         view.collection_group_results.blockIds = filteredBlockIds
       }
-    })
-  })
+    }
+  }
 
   return newRecordMap
 }
