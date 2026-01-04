@@ -37,6 +37,14 @@ export default withBundleAnalyzer({
     return config
   },
 
+
+  turbopack: {
+    resolveAlias: {
+      react: './node_modules/react',
+      'react-dom': './node_modules/react-dom'
+    }
+  },
+
   // See https://react-tweet.vercel.app/next#troubleshooting
   transpilePackages: ['react-tweet']
 })

@@ -91,6 +91,9 @@ export const isPreviewImageSupportEnabled: boolean = getSiteConfig(
   false
 )
 
+// Optional whether or not to enable support for i18n
+export const isI18nEnabled: boolean = getSiteConfig('isI18nEnabled', false)
+
 // Optional whether or not to include the Notion ID in page URLs or just use slugs
 export const includeNotionIdInUrls: boolean = getSiteConfig(
   'includeNotionIdInUrls',
