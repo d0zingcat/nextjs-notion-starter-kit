@@ -37,12 +37,11 @@ export default withBundleAnalyzer({
     return config
   },
 
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        react: './node_modules/react',
-        'react-dom': './node_modules/react-dom'
-      }
+
+  turbopack: {
+    resolveAlias: {
+      react: './node_modules/react',
+      'react-dom': './node_modules/react-dom'
     }
   },
 
