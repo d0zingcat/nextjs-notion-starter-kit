@@ -262,7 +262,12 @@ export function NotionPage({
 
   // Use state to store filtered recordMap, initialized with original
   const [filteredRecordMap, setFilteredRecordMap] =
-    React.useState<types.ExtendedRecordMap | undefined>(recordMap)
+    React.useState<types.ExtendedRecordMap | undefined>(() => {
+      if (config.isI18nEnabled && recordMap) {
+        return filterRecordMapByLanguage(recordMap, 'en')
+      }
+      return recordMap
+    })
 
   // Apply language filtering only after mount to avoid hydration mismatch
   React.useEffect(() => {
