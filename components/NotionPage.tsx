@@ -131,6 +131,74 @@ const Modal = dynamic(
   }
 )
 
+// Helper function to filter recordMap by language
+function filterRecordMapByLanguage(
+  recordMap: types.ExtendedRecordMap,
+  targetLang: string
+): types.ExtendedRecordMap {
+  // Deep clone collection_query to avoid mutating the original
+  const newRecordMap: types.ExtendedRecordMap = {
+    ...recordMap,
+    collection_query: JSON.parse(
+      JSON.stringify(recordMap.collection_query)
+    ) as types.ExtendedRecordMap['collection_query']
+  }
+
+  Object.keys(newRecordMap.collection_query || {}).forEach((collectionId) => {
+    const collection = newRecordMap.collection[collectionId]?.value
+    if (!collection) return
+
+    const schema = collection.schema
+    if (!schema) return
+
+    const langPropId = Object.keys(schema).find(
+      (key) => schema[key]?.name?.toLowerCase() === 'language'
+    )
+
+    if (!langPropId) return
+
+    const views = newRecordMap.collection_query[collectionId]
+    if (!views) return
+
+    Object.keys(views).forEach((viewId) => {
+      const view = views[viewId]
+      if (view?.collection_group_results?.blockIds) {
+        const originalBlockIds = view.collection_group_results.blockIds
+        const filteredBlockIds = originalBlockIds.filter((blockId: string) => {
+          const block = newRecordMap.block[blockId]?.value
+          if (!block) return false
+
+          const propValue = block.properties?.[langPropId]
+
+          // If no language property is set, show the post
+          if (!propValue) return true
+
+          // Validate the property format
+          if (
+            !Array.isArray(propValue) ||
+            propValue.length === 0 ||
+            !Array.isArray(propValue[0]) ||
+            typeof propValue[0][0] !== 'string'
+          ) {
+            // If the language property is present but not in the expected format,
+            // treat it as if no specific language is set and keep the block.
+            return true
+          }
+
+          const langText = propValue[0][0].toLowerCase().trim()
+
+          // Show if language matches or is set to 'all'
+          return langText.includes(targetLang) || langText === 'all'
+        })
+
+        view.collection_group_results.blockIds = filteredBlockIds
+      }
+    })
+  })
+
+  return newRecordMap
+}
+
 function Tweet({ id }: { id: string }) {
   const { recordMap } = useNotionContext()
   const tweet = (recordMap as types.ExtendedTweetRecordMap)?.tweets?.[id]
@@ -192,6 +260,32 @@ export function NotionPage({
   const router = useRouter()
   const lite = useSearchParam('lite')
 
+  // Use state to store filtered recordMap, initialized with original
+  const [filteredRecordMap, setFilteredRecordMap] =
+    React.useState<types.ExtendedRecordMap | undefined>(recordMap)
+
+  // Apply language filtering only after mount to avoid hydration mismatch
+  React.useEffect(() => {
+    if (!config.isI18nEnabled || !recordMap) {
+      setFilteredRecordMap(recordMap)
+      return
+    }
+
+    const browserLang =
+      typeof navigator !== 'undefined' && navigator.language
+        ? navigator.language
+        : 'en'
+
+    if (!browserLang) {
+      setFilteredRecordMap(recordMap)
+      return
+    }
+
+    const langCode = (browserLang.split('-')[0] || 'en').toLowerCase()
+
+    setFilteredRecordMap(filterRecordMapByLanguage(recordMap, langCode))
+  }, [recordMap, config.isI18nEnabled])
+
   const components = React.useMemo<Partial<NotionComponents>>(
     () => ({
       nextLegacyImage: Image,
@@ -220,11 +314,11 @@ export function NotionPage({
     if (lite) params.lite = lite
 
     const searchParams = new URLSearchParams(params)
-    return site ? mapPageUrl(site, recordMap!, searchParams) : undefined
-  }, [site, recordMap, lite])
+    return site ? mapPageUrl(site, filteredRecordMap!, searchParams) : undefined
+  }, [site, filteredRecordMap, lite])
 
-  const keys = Object.keys(recordMap?.block || {})
-  const block = recordMap?.block?.[keys[0]!]?.value
+  const keys = Object.keys(filteredRecordMap?.block || {})
+  const block = filteredRecordMap?.block?.[keys[0]!]?.value
 
   // const isRootPage =
   //   parsePageId(block?.id) === parsePageId(site?.rootNotionPageId)
@@ -238,11 +332,11 @@ export function NotionPage({
     () => (
       <PageAside
         block={block!}
-        recordMap={recordMap!}
+        recordMap={filteredRecordMap!}
         isBlogPost={isBlogPost}
       />
     ),
-    [block, recordMap, isBlogPost]
+    [block, filteredRecordMap, isBlogPost]
   )
 
   const footer = React.useMemo(() => <Footer />, [])
@@ -255,37 +349,37 @@ export function NotionPage({
     return <Page404 site={site} pageId={pageId} error={error} />
   }
 
-  const title = getBlockTitle(block, recordMap) || site.name
+  const title = getBlockTitle(block, filteredRecordMap) || site.name
 
   console.log('notion page', {
     isDev: config.isDev,
     title,
     pageId,
     rootNotionPageId: site.rootNotionPageId,
-    recordMap
+    recordMap: filteredRecordMap
   })
 
   if (!config.isServer) {
     // add important objects to the window global for easy debugging
     const g = window as any
     g.pageId = pageId
-    g.recordMap = recordMap
+    g.recordMap = filteredRecordMap
     g.block = block
   }
 
   const canonicalPageUrl = config.isDev
     ? undefined
-    : getCanonicalPageUrl(site, recordMap)(pageId)
+    : getCanonicalPageUrl(site, filteredRecordMap)(pageId)
 
   const socialImage = mapImageUrl(
-    getPageProperty<string>('Social Image', block, recordMap) ||
+    getPageProperty<string>('Social Image', block, filteredRecordMap) ||
       (block as PageBlock).format?.page_cover ||
       config.defaultPageCover,
     block
   )
 
   const socialDescription =
-    getPageProperty<string>('Description', block, recordMap) ||
+    getPageProperty<string>('Description', block, filteredRecordMap) ||
     config.description
 
   return (
@@ -310,11 +404,11 @@ export function NotionPage({
         )}
         darkMode={isDarkMode}
         components={components}
-        recordMap={recordMap}
+        recordMap={filteredRecordMap}
         rootPageId={site.rootNotionPageId}
         rootDomain={site.domain}
         fullPage={!isLiteMode}
-        previewImages={!!recordMap.preview_images}
+        previewImages={!!filteredRecordMap.preview_images}
         showCollectionViewDropdown={false}
         showTableOfContents={showTableOfContents}
         minTableOfContentsItems={minTableOfContentsItems}

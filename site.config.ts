@@ -38,6 +38,10 @@ export default siteConfig({
   // environment variables. see the readme for more info
   isRedisEnabled: true,
 
+  // whether or not to enable support for i18n (optional)
+  // if enabled, the site will filter posts based on the user's browser language
+  isI18nEnabled: true,
+
   // map of notion page IDs to URL paths (optional)
   // any pages defined here will override their default URL paths
   // example:
